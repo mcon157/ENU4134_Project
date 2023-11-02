@@ -79,3 +79,15 @@ while 1
         type = input(prompt1,'s');
     end
 end
+filename1 = 'ENU_4134_Project.xlsx';
+
+if strcmp("PWR",type) && strcmp("N",yn)
+    sheet = 'PWRnoSCB';
+elseif strcmp("PWR",type) && strcmp("Y",yn)
+    sheet = 'PWRSCB';
+elseif strcmp("BWR",type) && strcmp("N",yn)
+    sheet = 'BWRnoSCB';
+elseif strcmp("BWR",type) && strcmp("Y",yn)
+    sheet = 'BWRSCB';
+end
+writetable(table,filename1,'Sheet',sheet)
