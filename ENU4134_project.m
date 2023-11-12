@@ -26,8 +26,9 @@ k_f = proptable{:,8};
 Pr_f = proptable{:,9};
 mu_g = proptable{:,10};
 
-for scenario = 1:2 %4
-    s = [s1,s2]; %,s3,s4];
+for scenario = 1:4
+    s = [s1,s2,s3,s4];
+    %Pulling variables from benchmark scenario
     s = s(:,scenario);
     L = s(1);
     Le = s(2);
@@ -41,6 +42,7 @@ for scenario = 1:2 %4
     D_ci =  s(9);
     D_fo =  s(10);
     sub = s(11);
+    %Setting up z
     inlet = (-L/2)+L/400;
     outlet = L/2;
     z = linspace(inlet,outlet,400);
@@ -49,6 +51,7 @@ for scenario = 1:2 %4
     h_feb = zeros(400,1);
     h_feb1 = h_f(Tm_inC);
     T_m = zeros(400,1);
+    T_1co = zeros(400,1);
     T_co = zeros(400,1);
     T_ci = zeros(400,1);
     vol_l = zeros(400,1);
@@ -62,6 +65,7 @@ for scenario = 1:2 %4
     CHFR = zeros(400,1);
     %Boiling Flag
     boiling = 0;
+    sboiling = 0;
     %Table Setup
     table = table(zeros(400,1),zeros(400,1),zeros(400,1),zeros(400,1),zeros(400,1),zeros(400,1),zeros(400,1),zeros(400,1),zeros(400,1),zeros(400,1),zeros(400,1),'VariableNames',{'Cell','z','T_m','T_co','T_ci','T_fo','T_max','x','x_e','CHFR','dP'});
     
@@ -70,6 +74,7 @@ for scenario = 1:2 %4
         table.Cell(i) = i;
         z_i = z(i);
         table.z(i) = z_i;
+        %delta z
         del_z = L/400;
         z_half = z_i - 0.5*(del_z);
         q_lin = qlinmax*cos((pi*z_i)/Le);
@@ -83,31 +88,30 @@ for scenario = 1:2 %4
         h_gsat = interp1(Psat,h_g,(Pnom*10^6),'linear','extrap');
         T_m(i) = interp1(h_f,Tsat,h_feb(i),'linear','extrap');
         T_sat = interp1(Psat,Tsat,(Pnom*10^6),'linear','extrap');
-        if T_m(i) >= T_sat
-            boiling = 1;
-            T_m(i) = T_sat;
-            hfg = interp1(Tsat,h_g,T_m(i),'linear','extrap') - interp1(Tsat,h_f,T_m(i),'linear','extrap');
-            x_e(i) = (h_feb(i)-h_fsat)/(h_gsat-h_fsat);
-            if sub == 0
-                x(i) = x_e(i);
-                table.x(i) = x(i);
-                table.x_e(i) = x_e(i);
-            % x and x_e subcooled
-            elseif sub == 1 
-                if T_co(i) > T_sat 
-                    ZD(i) = z_i;
-                %end
-                %if h_feb(i) < h_fsat
+        if sub == 0
+            %Boiling check
+                if T_m(i) >= T_sat
+                    boiling = 1;
+                    T_m(i) = T_sat;
+                    table.T_m(i) = T_m(i);
+                    hfg = interp1(Tsat,h_g,T_m(i),'linear','extrap') - interp1(Tsat,h_f,T_m(i),'linear','extrap');
                     x_e(i) = (h_feb(i)-h_fsat)/(h_gsat-h_fsat);
-                    ZD_1 = find(ZD>0,1,'first');
-                    x_eZD = x_e(ZD_1);
-                    x(i) = x_e(i)-x_eZD*exp((x_e(i)/x_eZD)-1);
+                    x(i) = x_e(i);
                     table.x(i) = x(i);
                     table.x_e(i) = x_e(i);
+                else
+                    table.T_m(i) = T_m(i);
                 end
-            end
+        elseif sub == 1
+            %SCB check
+                if T_m(i) >= T_sat
+                    boiling = 1;
+                    T_m(i) = T_sat;
+                    table.T_m(i) = T_m(i);
+                else
+                    table.T_m(i) = T_m(i);
+                end
         end
-        table.T_m(i) = T_m(i);
 
         %T_co
         Dh = D*((4/pi)*((P/D)^2)-1);
@@ -122,10 +126,29 @@ for scenario = 1:2 %4
         k_l = interp1(Tsat,k_f,T_m(i),'linear','extrap');
         htc = Nu*(k_l/Dh);
         T_co(i) = T_m(i)+(q_lin/(2*pi*R_co*htc));
-        table.T_co(i) = T_co(i);
+        if boiling == 0
+            table.T_co(i) = T_co(i);
+        end
+        if sub == 1
+            %Sub-Cooled w/ different x and x_e
+            if T_co(i) > T_sat || sboiling == 1
+                boiling = 1;
+                sboiling = 1;
+                x_e(i) = (h_feb(i)-h_fsat)/(h_gsat-h_fsat);
+                ZD(i) = z_i;
+                ZD_1 = find(abs(ZD)>0,1,'first');
+                x_eZD = x_e(ZD_1);
+                x(i) = x_e(i)-x_eZD*exp((x_e(i)/x_eZD)-1);
+                if x(i) > 0 
+                    table.x(i) = x(i);
+                    table.x_e(i) = x_e(i);
+                end
+            end
+        end
+
         if boiling == 1
              %Schrock and Grossman
-             %hfg = interp1(Tsat,h_g,T_m(i),'linear','extrap') - interp1(Tsat,h_f,T_m(i),'linear','extrap');
+             hfg = interp1(Tsat,h_g,T_m(i),'linear','extrap') - interp1(Tsat,h_f,T_m(i),'linear','extrap');
              vol_l(i) = interp1(Tsat,vol_f,T_m(i),'linear','extrap');
              rho_l = 1/vol_l(i);
              vol_v(i) = interp1(Tsat,vol_g,T_m(i),'linear','extrap');
@@ -137,22 +160,9 @@ for scenario = 1:2 %4
              htc2 = htc*(7400*(qll/(G*hfg))+(1.11*Xtt^(-0.66)));
              T_co(i) = T_m(i)+(q_lin/(2*pi*R_co*htc2));
              table.T_co(i) = T_co(i);
-             if T_co(i) > T_sat
-                ZD(i) = z_i;
-             end
-        end
-        if sub == 1
-            if h_feb(i) < h_fsat
-                x_e(i) = (h_feb(i)-h_fsat)/(h_gsat-h_fsat);
-                ZD_1 = find(ZD>0,1,'first');
-                x_eZD = x_e(ZD_1);
-                x(i) = x_e(i)-x_eZD*exp((x_e(i)/x_eZD)-1);
-                table.x(i) = x(i);
-                table.x_e(i) = x_e(i);
-            end
         end
         %Bowring
-        if boiling == 1
+        if boiling == 1 || x(i) > 0
             %hfg = interp1(Tsat,h_g,T_m(i),'linear','extrap') - interp1(Tsat,h_f,T_m(i),'linear','extrap');
             pr = 0.145*Pnom;
             n = 2 - 0.5*pr;
@@ -163,7 +173,7 @@ for scenario = 1:2 %4
                 F4 = F3*(pr^1.649);
             else
                 F1 = (1/1.917)*((pr^(18.942))*exp(20.89*(1-pr))+0.917);
-                F2 = 1.309*F1*(pr^(1.316)*exp(0.2444*(1-pr))+0.309)^-1;
+                F2 = 1.309*F1*(pr^(1.316)*exp(2.444*(1-pr))+0.309)^-1;
                 F3 = (1/1.667)*((pr^(17.023))*exp(16.658*(1-pr))+0.667);
                 F4 = F3*(pr^1.649);
             end 
@@ -172,7 +182,9 @@ for scenario = 1:2 %4
             C = (0.077*F3*Dh*G)/(1+(0.347*F4*(G/1356)^n));
             qcr = psi*(A - B*hfg*x(i))/C; %in W/m^2
             CHFR(i) = qcr/qll;
-            table.CHFR(i) = CHFR(i);
+            if x(i) > 0
+                table.CHFR(i) = CHFR(i);
+            end
         end
         %Pressure Drop
         f_lo = (Re^-0.18)*(0.1339+(0.09059*((P/D)-1))+(-0.09926*((P/D)-1)^2));
@@ -191,7 +203,7 @@ for scenario = 1:2 %4
             volfg = interp1(Tsat,vol_g,T_m(i),'linear','extrap') - interp1(Tsat,vol_f,T_m(i),'linear','extrap');
             del_x = abs(x(i) - x(i-1));
             dPa = (G^2)*(del_x/del_z)*volfg;
-            dPf = f_lo*(1/Dh)*((G^2)/(2*rho_l));
+            dPf = f_lo*(1/Dh)*((G^2)/(2*rho_m));
             dP(i) = (dPf+dPa+dPg)*del_z;
             table.dP(i) = dP(i);
         end
@@ -241,6 +253,7 @@ for scenario = 1:2 %4
         end
         table.T_max(i) = T_max(i);
     end
+    %Table Writing
     if scenario == 1
         sheet = 'PWRnoSCB';
     elseif scenario == 2
