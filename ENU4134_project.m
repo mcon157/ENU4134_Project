@@ -1,4 +1,4 @@
-clc; clear;
+close all; clear;
 
 g = 9.81;
 k_c = 15; %W/m*K
@@ -25,6 +25,10 @@ mu_f = proptable{:,7};
 k_f = proptable{:,8};
 Pr_f = proptable{:,9};
 mu_g = proptable{:,10};
+alert1 = zeros(400,1);
+alert2 = zeros(400,1);
+alert3 = zeros(400,1);
+alert4 = zeros(400,1);
 
 for scenario = 1:4
     s = [s1,s2,s3,s4];
@@ -184,6 +188,24 @@ for scenario = 1:4
             CHFR(i) = qcr/qll;
             if x(i) > 0
                 table.CHFR(i) = CHFR(i);
+                %disp(scenario)
+            end
+        end
+        if scenario == 1
+            if table.CHFR(i) < 1.3
+                alert1(i) = 1;
+            end
+        elseif scenario == 2
+            if table.CHFR(i) < 1.9
+                alert2(i) = 1;
+            end
+        elseif scenario == 3
+            if table.CHFR(i) < 1.3
+                alert3(i) = 1;
+            end
+        elseif scenario == 4
+            if table.CHFR(i) < 1.9
+                alert4(i) = 1;
             end
         end
         %Pressure Drop
@@ -256,18 +278,51 @@ for scenario = 1:4
     %Table Writing
     if scenario == 1
         sheet = 'PWRnoSCB';
+        %alert1 = 
     elseif scenario == 2
         sheet = 'BWRnoSCB';
+        %alert2
     elseif scenario == 3
         sheet = 'PWRSCB';
+        %alert3 = 
     elseif scenario == 4
         sheet = 'BWRSCB';
+        %alert4 = 
     end
     filename1 = 'ENU_4134_Project.xlsx';
     writetable(table,filename1,'Sheet',sheet)
     clear table
     scenario = scenario+1;
 end
+Excel = actxserver('Excel.Application');
+WB = Excel.Workbooks.Open(fullfile(pwd, filename1),0,false);
+ws = 1;
+for j = 1:4
+    for k = 2:401
+        if ws == 1
+            sheet = 'PWRnoSCB';
+            alertw = alert1;
+        elseif ws == 2
+            sheet = 'BWRnoSCB';
+            alertw = alert2;
+        elseif ws == 3
+            sheet = 'PWRSCB';
+            alertw = alert3;
+        elseif ws == 4
+            sheet = 'BWRSCB';
+            alertw = alert4;
+        end
+        if alertw(k-1) == 1
+            cell = "J"+num2str(k);
+            WB.Worksheets.Item(sheet).Range(cell).Interior.ColorIndex = 3;
+        end
+    end
+    ws = ws+1;
+end
+WB.Save();
+WB.Close(false);
+Excel.Quit();
+
 disp('fin')
 
     
