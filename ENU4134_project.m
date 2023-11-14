@@ -5,14 +5,8 @@ k_c = 15; %W/m*K
 emis_f = 1;
 emis_c = 1;
 %Importing benchmark
-open1 = fopen('benchmark_1_noSCB.txt','r');
-open2 = fopen('benchmark_2_noSCB.txt','r');
-open3 = fopen('benchmark_1_SCB.txt','r');
-open4 = fopen('benchmark_2_SCB.txt','r');
-s1 = fscanf(open1,'%f');
-s2 = fscanf(open2,'%f');
-s3 = fscanf(open3,'%f');
-s4 = fscanf(open4,'%f');
+open1 = fopen('input.txt','r');
+s = fscanf(open1,'%f');
 %Importing prop tables 
 proptable = readtable('proptable.txt');
 Tsat = proptable{:,1};
@@ -30,11 +24,11 @@ alert2 = zeros(400,1);
 alert3 = zeros(400,1);
 alert4 = zeros(400,1);
 
-for scenario = 1:4
-    s = [s1,s2,s3,s4];
+%for scenario = 1:4
+    %s = [s1,s2,s3,s4];
     %Pulling variables from benchmark scenario
-    s = s(:,scenario);
-    L = s(1);
+    %s = s(:,scenario);
+    L = s(1); 
     Le = s(2);
     D = s(3);
     P =  s(4);
@@ -45,7 +39,8 @@ for scenario = 1:4
     qlinmax =  s(8); %W/m
     D_ci =  s(9);
     D_fo =  s(10);
-    sub = s(11);
+    sub = s(11); %PWR = 0, BWR = 1
+    type = s(12);
     %Setting up z
     inlet = (-L/2)+L/400;
     outlet = L/2;
@@ -191,19 +186,19 @@ for scenario = 1:4
                 %disp(scenario)
             end
         end
-        if scenario == 1
+        if type == 0 && sub == 0
             if table.CHFR(i) < 1.3
                 alert1(i) = 1;
             end
-        elseif scenario == 2
+        elseif type == 1 && sub == 0
             if table.CHFR(i) < 1.9
                 alert2(i) = 1;
             end
-        elseif scenario == 3
+        elseif type == 0 && sub == 1
             if table.CHFR(i) < 1.3
                 alert3(i) = 1;
             end
-        elseif scenario == 4
+        elseif type == 1 && sub == 1
             if table.CHFR(i) < 1.9
                 alert4(i) = 1;
             end
@@ -276,39 +271,31 @@ for scenario = 1:4
         table.T_max(i) = T_max(i);
     end
     %Table Writing
-    if scenario == 1
+    if type == 0 && sub == 0
         sheet = 'PWRnoSCB';
-        %alert1 = 
-    elseif scenario == 2
+    elseif type == 1 && sub == 0
         sheet = 'BWRnoSCB';
-        %alert2
-    elseif scenario == 3
+    elseif type == 0 && sub == 1
         sheet = 'PWRSCB';
-        %alert3 = 
-    elseif scenario == 4
+    elseif type == 1 && sub == 1
         sheet = 'BWRSCB';
-        %alert4 = 
     end
     filename1 = 'ENU_4134_Project.xlsx';
     writetable(table,filename1,'Sheet',sheet)
     clear table
-    scenario = scenario+1;
-end
 Excel = actxserver('Excel.Application');
 WB = Excel.Workbooks.Open(fullfile(pwd, filename1),0,false);
-ws = 1;
-for j = 1:4
-    for k = 2:401
-        if ws == 1
+for k = 2:401
+        if type == 0 && sub == 0
             sheet = 'PWRnoSCB';
             alertw = alert1;
-        elseif ws == 2
+        elseif type == 1 && sub == 0
             sheet = 'BWRnoSCB';
             alertw = alert2;
-        elseif ws == 3
+        elseif type == 0 && sub == 1
             sheet = 'PWRSCB';
             alertw = alert3;
-        elseif ws == 4
+        elseif type == 1 && sub == 1
             sheet = 'BWRSCB';
             alertw = alert4;
         end
@@ -316,8 +303,6 @@ for j = 1:4
             cell = "J"+num2str(k);
             WB.Worksheets.Item(sheet).Range(cell).Interior.ColorIndex = 3;
         end
-    end
-    ws = ws+1;
 end
 WB.Save();
 WB.Close(false);
